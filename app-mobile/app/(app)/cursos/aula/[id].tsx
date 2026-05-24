@@ -1,86 +1,144 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTheme } from '../../../../src/context/ThemeContext';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../../../src/api/api';
 import { MaterialIcons } from '@expo/vector-icons';
+import { ErrorState, LoadingState, PrimaryButton, ProgressBar, Screen } from '../../../../src/components/ui';
+import { useTheme } from '../../../../src/context/ThemeContext';
+import { useCompleteLesson, useLesson } from '../../../../src/hooks/useLearning';
+import { getApiErrorMessage } from '../../../../src/services/http';
 
 export default function AulaReadingScreen() {
-  const { id, aulaIndex } = useLocalSearchParams();
+  const { id, aulaId } = useLocalSearchParams<{ id: string; aulaId?: string }>();
   const { colors } = useTheme();
   const router = useRouter();
-  const [completed, setCompleted] = useState(false);
+  const lesson = useLesson(id, aulaId);
+  const completeLesson = useCompleteLesson();
 
-  const parsedIndex = parseInt(aulaIndex as string);
-
-  const { data: curso, isLoading, isError } = useQuery({
-    queryKey: ['curso', id],
-    queryFn: async () => {
-      const resp = await api.get(`/cursos/${id}`);
-      return resp.data;
-    }
-  });
-
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: { padding: 24, paddingBottom: 16, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-    content: { padding: 24 },
-    badge: { alignSelf: 'flex-start', backgroundColor: colors.primary + '20', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16, marginBottom: 12 },
-    badgeText: { color: colors.primary, fontWeight: 'bold', fontSize: 12 },
-    title: { fontSize: 24, fontWeight: 'bold', color: colors.text, marginBottom: 8, lineHeight: 32 },
-    courseInfo: { fontSize: 12, color: colors.text, opacity: 0.6, fontWeight: 'bold', textTransform: 'uppercase' },
-    lessonContent: { fontSize: 18, color: colors.text, opacity: 0.9, lineHeight: 28, marginTop: 16 },
-    button: { backgroundColor: completed ? '#10B981' : colors.primary, padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 40, flexDirection: 'row', justifyContent: 'center', gap: 8 },
-    buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' }
-  });
-
-  if (isLoading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  if (isError || !curso || !curso.aulas) return <View style={styles.center}><Text style={{ color: 'red' }}>Erro ao carregar os dados da aula.</Text></View>;
-
-  const aula = curso.aulas[parsedIndex];
-
-  if (!aula) {
-    return (
-      <View style={styles.center}>
-        <Text style={{color: colors.text}}>Aula não encontrada no índice {parsedIndex}</Text>
-        <TouchableOpacity style={{marginTop: 16}} onPress={() => router.back()}><Text style={{color: colors.primary}}>Voltar</Text></TouchableOpacity>
-      </View>
-    );
+  if (lesson.isLoading) return <LoadingState label="Carregando conteudo real da aula..." />;
+  if (lesson.isError || !lesson.data) {
+    return <ErrorState message="Erro ao carregar os dados da aula." onRetry={() => lesson.refetch()} />;
   }
 
+  const { curso, aula } = lesson.data;
+  const completed = Boolean(aula && curso.progresso?.aulasConcluidasIds.includes(aula.id));
+
+  const handleComplete = async () => {
+    try {
+      await completeLesson.mutateAsync({
+        cursoId: curso.id,
+        aulaId: aula.id,
+        aulaTitulo: aula.titulo,
+        cursoTitulo: curso.titulo,
+      });
+      Alert.alert('Progresso atualizado', 'Aula registrada com sucesso.');
+    } catch (error) {
+      Alert.alert('Falha ao concluir aula', getApiErrorMessage(error));
+    }
+  };
+
+  const styles = StyleSheet.create({
+    content: {
+      paddingBottom: 36,
+    },
+    header: {
+      backgroundColor: colors.card,
+      borderBottomColor: colors.border,
+      borderBottomWidth: 1,
+      gap: 10,
+      padding: 20,
+    },
+    badge: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      backgroundColor: completed ? colors.success : colors.primary,
+      borderRadius: 999,
+      flexDirection: 'row',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    badgeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    title: {
+      color: colors.text,
+      fontSize: 24,
+      fontWeight: '900',
+      lineHeight: 31,
+    },
+    courseInfo: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    metaLine: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
+      lineHeight: 19,
+    },
+    body: {
+      gap: 16,
+      padding: 20,
+    },
+    paragraph: {
+      color: colors.text,
+      fontSize: 17,
+      lineHeight: 28,
+    },
+    progressLabel: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    actions: {
+      gap: 10,
+      marginTop: 14,
+    },
+  });
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Aula {parsedIndex + 1} de {curso.aulas.length}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <View style={styles.badge}>
+            <MaterialIcons name={completed ? 'check-circle' : 'menu-book'} size={16} color="#FFFFFF" />
+            <Text style={styles.badgeText}>{completed ? 'Concluida' : 'Em leitura'}</Text>
+          </View>
+          <Text style={styles.title}>{aula.titulo}</Text>
+          <Text style={styles.courseInfo}>Curso: {curso.titulo}</Text>
+          <Text style={styles.metaLine}>
+            {aula.duracaoMinutos} minutos
+            {aula.totalDesafios ? ` - ${aula.totalDesafios} desafios praticos` : ''}
+            {curso.source === 'freecodecamp' ? ' - fonte freeCodeCamp' : ''}
+          </Text>
         </View>
-        <Text style={styles.title}>{aula.titulo}</Text>
-        <Text style={styles.courseInfo}>Curso: {curso.titulo}</Text>
-      </View>
 
-      <View style={styles.content}>
-        <Text style={styles.lessonContent}>{aula.conteudo}</Text>
+        <View style={styles.body}>
+          <Text style={styles.paragraph}>{aula.conteudo}</Text>
+          <Text style={styles.progressLabel}>{curso.progresso?.percentual || 0}% do curso concluido</Text>
+          <ProgressBar value={curso.progresso?.percentual || 0} />
 
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={() => {
-            setCompleted(!completed);
-            if (!completed) router.back();
-          }}
-        >
-          <MaterialIcons name={completed ? "check-circle" : "check"} size={24} color="#FFF" />
-          <Text style={styles.buttonText}>{completed ? 'Aula Finalizada!' : 'Marcar como Concluída e Sair'}</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: 'transparent', borderColor: colors.primary, borderWidth: 1, marginTop: 16, marginBottom: 40 }]} 
-          onPress={() => router.back()}
-        >
-          <Text style={[styles.buttonText, { color: colors.primary }]}>Voltar para Grade</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          <View style={styles.actions}>
+            <PrimaryButton
+              disabled={completed}
+              icon={completed ? 'check-circle' : 'check'}
+              label={completed ? 'Aula ja concluida' : 'Marcar como concluida'}
+              loading={completeLesson.isPending}
+              onPress={handleComplete}
+            />
+            <PrimaryButton
+              icon="arrow-back"
+              label="Voltar ao curso"
+              onPress={() => router.push(`/cursos/${curso.id}` as never)}
+              variant="secondary"
+            />
+          </View>
+        </View>
+      </ScrollView>
+    </Screen>
   );
 }

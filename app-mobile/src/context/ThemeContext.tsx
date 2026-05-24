@@ -12,23 +12,32 @@ interface ThemeContextData {
     primary: string;
     card: string;
     border: string;
+    muted: string;
+    success: string;
+    danger: string;
   };
 }
 
 const lightColors = {
-  background: '#F9FAFB',
+  background: '#F6F7FB',
   text: '#111827',
-  primary: '#EA580C',
+  primary: '#C2410C',
   card: '#FFFFFF',
-  border: '#E5E7EB',
+  border: '#DDE2EA',
+  muted: '#667085',
+  success: '#0F766E',
+  danger: '#B42318',
 };
 
 const darkColors = {
-  background: '#1F2937',
+  background: '#111827',
   text: '#F9FAFB',
-  primary: '#F97316',
-  card: '#374151',
-  border: '#4B5563',
+  primary: '#FB923C',
+  card: '#1F2937',
+  border: '#374151',
+  muted: '#CBD5E1',
+  success: '#2DD4BF',
+  danger: '#F87171',
 };
 
 const ThemeContext = createContext<ThemeContextData>({} as ThemeContextData);

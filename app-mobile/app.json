@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "app-mobile",
-    "slug": "app-mobile",
+    "name": "OracleLearn",
+    "slug": "oraclelearn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "appmobile",
+    "scheme": "oraclelearn",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -27,6 +27,8 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
+      "expo-web-browser",
       [
         "expo-splash-screen",
         {

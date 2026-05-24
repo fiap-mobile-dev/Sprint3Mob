@@ -1,38 +1,44 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
 import { useTheme } from '../src/context/ThemeContext';
-import { api } from '../src/api/api';
+import { PrimaryButton } from '../src/components/ui';
 
 export default function LoginScreen() {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('123');
   const [name, setName] = useState('');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
   const { colors } = useTheme();
 
   const handleAction = async () => {
     setErrorMsg('');
-    if (!username || !password || (isRegister && !name)) {
-      setErrorMsg('Preencha todos os campos obrigatórios.');
+
+    if (!login.trim() || !password.trim() || (isRegister && !name.trim())) {
+      setErrorMsg('Preencha todos os campos obrigatorios.');
       return;
     }
-    
+
     setLoading(true);
     try {
       if (isRegister) {
-        await api.post('/register', { username, password, name, role: 'admin' });
-        Alert.alert('Sucesso', 'Conta criada! Você já pode entrar.');
-        setIsRegister(false);
+        await signUp(name.trim(), login.trim(), password);
       } else {
-        await signIn(username, password);
+        await signIn(login.trim(), password);
       }
-    } catch (err: any) {
-      setErrorMsg(err.response?.data?.error || 'Credenciais inválidas.');
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : 'Nao foi possivel autenticar.');
     } finally {
       setLoading(false);
     }
@@ -40,130 +46,138 @@ export default function LoginScreen() {
 
   const styles = StyleSheet.create({
     container: {
-      flex: 1,
       backgroundColor: colors.background,
+      flex: 1,
     },
     scrollArea: {
       flexGrow: 1,
       justifyContent: 'center',
       padding: 24,
     },
-    titleBox: {
-      marginBottom: 40,
-      alignItems: 'center',
+    brand: {
+      marginBottom: 28,
+    },
+    eyebrow: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0,
+      textTransform: 'uppercase',
     },
     title: {
-      fontSize: 32,
-      fontWeight: 'bold',
       color: colors.primary,
-      marginBottom: 8,
+      fontSize: 34,
+      fontWeight: '900',
+      marginTop: 6,
     },
     subtitle: {
-      fontSize: 16,
       color: colors.text,
-      opacity: 0.7,
+      fontSize: 16,
+      lineHeight: 22,
+      marginTop: 8,
     },
-    card: {
+    form: {
       backgroundColor: colors.card,
-      padding: 24,
-      borderRadius: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 5,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 12,
+      padding: 18,
     },
     input: {
       backgroundColor: colors.background,
-      color: colors.text,
-      borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 8,
-      padding: 16,
-      marginBottom: 16,
+      borderWidth: 1,
+      color: colors.text,
       fontSize: 16,
-    },
-    button: {
-      backgroundColor: colors.primary,
-      padding: 16,
-      borderRadius: 8,
-      alignItems: 'center',
-      marginTop: 8,
-    },
-    buttonText: {
-      color: '#FFF',
-      fontSize: 16,
-      fontWeight: 'bold',
-    },
-    switchText: {
-      color: colors.primary,
-      textAlign: 'center',
-      marginTop: 24,
-      fontWeight: 'bold'
+      minHeight: 50,
+      paddingHorizontal: 14,
     },
     errorText: {
-      color: '#EF4444',
+      color: colors.danger,
+      fontSize: 14,
+      fontWeight: '700',
       textAlign: 'center',
-      marginBottom: 16,
-      fontWeight: 'bold',
-    }
+    },
+    switchButton: {
+      marginTop: 16,
+    },
   });
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollArea}>
-        <View style={styles.titleBox}>
+      <ScrollView contentContainerStyle={styles.scrollArea} keyboardShouldPersistTaps="handled">
+        <View style={styles.brand}>
+          <Text style={styles.eyebrow}>Plataforma mobile de treinamentos</Text>
           <Text style={styles.title}>OracleLearn</Text>
-          <Text style={styles.subtitle}>Plataforma Movel de Treinamentos</Text>
+          <Text style={styles.subtitle}>
+            Acesse cursos, acompanhe sua evolucao e conclua trilhas com certificado.
+          </Text>
         </View>
-        
-        <View style={styles.card}>
-          {isRegister && (
+
+        <View style={styles.form}>
+          {isRegister ? (
             <TextInput
+              autoCapitalize="words"
+              onChangeText={(text) => {
+                setName(text);
+                setErrorMsg('');
+              }}
+              placeholder="Nome completo"
+              placeholderTextColor={colors.muted}
               style={styles.input}
-              placeholder="Seu Nome Completo"
-              placeholderTextColor={colors.border}
               value={name}
-              onChangeText={t => { setName(t); setErrorMsg(''); }}
             />
-          )}
+          ) : null}
 
           <TextInput
-            style={styles.input}
-            placeholder="Usuário"
-            placeholderTextColor={colors.border}
-            value={username}
-            onChangeText={t => { setUsername(t); setErrorMsg(''); }}
             autoCapitalize="none"
-          />
-          
-          <TextInput
+            keyboardType="email-address"
+            onChangeText={(text) => {
+              setLogin(text);
+              setErrorMsg('');
+            }}
+            placeholder="E-mail ou usuario"
+            placeholderTextColor={colors.muted}
             style={styles.input}
+            value={login}
+          />
+
+          <TextInput
+            onChangeText={(text) => {
+              setPassword(text);
+              setErrorMsg('');
+            }}
             placeholder="Senha"
-            placeholderTextColor={colors.border}
-            value={password}
-            onChangeText={t => { setPassword(t); setErrorMsg(''); }}
+            placeholderTextColor={colors.muted}
             secureTextEntry
+            style={styles.input}
+            value={password}
           />
 
           {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
-          
-          <TouchableOpacity style={styles.button} onPress={handleAction} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.buttonText}>{isRegister ? 'Criar Conta' : 'Entrar'}</Text>
-            )}
-          </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-            <Text style={styles.switchText}>
-              {isRegister ? 'Já tenho conta, acessar!' : 'Não tem conta? Crie uma!'}
-            </Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            icon={isRegister ? 'person-add' : 'login'}
+            label={isRegister ? 'Criar conta' : 'Entrar'}
+            loading={loading}
+            onPress={handleAction}
+          />
+
+          <PrimaryButton
+            icon={isRegister ? 'arrow-back' : 'person-add-alt'}
+            label={isRegister ? 'Ja tenho conta' : 'Criar nova conta'}
+            onPress={() => {
+              setIsRegister((value) => !value);
+              setErrorMsg('');
+            }}
+            style={styles.switchButton}
+            variant="secondary"
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -1,90 +1,128 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { EmptyState, ErrorState, LoadingState, MetricCard, PrimaryButton, ProgressBar, Screen } from '../../src/components/ui';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../src/api/api';
-import { MaterialIcons } from '@expo/vector-icons';
+import { useDashboard } from '../../src/hooks/useLearning';
 
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
+  const router = useRouter();
+  const dashboard = useDashboard();
 
-  const { data: cursos } = useQuery({
-    queryKey: ['cursos-dashboard'],
-    queryFn: async () => {
-      const resp = await api.get('/cursos');
-      return resp.data;
-    }
-  });
+  if (dashboard.isLoading) return <LoadingState label="Carregando sua trilha..." />;
+  if (dashboard.isError || !dashboard.data) {
+    return <ErrorState message="Nao foi possivel carregar o painel." onRetry={() => dashboard.refetch()} />;
+  }
 
-  const totalCursos = cursos?.length || 0;
-  const horasTotais = cursos?.reduce((acc: number, curr: any) => acc + (curr.cargaHoraria || 0), 0) || 0;
+  const { resumo, continuar } = dashboard.data;
 
   const styles = StyleSheet.create({
     container: {
-      flex: 1,
-      backgroundColor: colors.background,
       padding: 16,
+      paddingBottom: 28,
+    },
+    header: {
+      gap: 6,
+      marginBottom: 18,
+    },
+    hello: {
+      color: colors.muted,
+      fontSize: 14,
+      fontWeight: '700',
+      textTransform: 'uppercase',
     },
     title: {
-      fontSize: 24,
-      fontWeight: 'bold',
       color: colors.text,
-      marginBottom: 20,
+      fontSize: 26,
+      fontWeight: '900',
+      lineHeight: 32,
     },
-    cardsContainer: {
+    metrics: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       flexWrap: 'wrap',
+      gap: 12,
+      marginBottom: 18,
     },
-    card: {
-      backgroundColor: colors.card,
-      width: '48%',
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    cardTitle: {
-      fontSize: 14,
+    sectionTitle: {
       color: colors.text,
-      opacity: 0.7,
-      marginTop: 8,
+      fontSize: 18,
+      fontWeight: '800',
+      marginBottom: 10,
     },
-    cardValue: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: colors.primary,
-      marginTop: 4,
+    continueCard: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 12,
+      padding: 16,
+    },
+    cardHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 10,
+    },
+    courseTitle: {
+      color: colors.text,
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '800',
+    },
+    description: {
+      color: colors.muted,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    progressLabel: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
     },
   });
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Olá, {user?.name}</Text>
-      
-      <View style={styles.cardsContainer}>
-        <View style={styles.card}>
-          <MaterialIcons name="school" size={32} color={colors.primary} />
-          <Text style={styles.cardTitle}>Cursos Ativos</Text>
-          <Text style={styles.cardValue}>{totalCursos}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.hello}>Ola, {user?.name}</Text>
+          <Text style={styles.title}>Sua jornada de aprendizagem</Text>
         </View>
-        <View style={styles.card}>
-          <MaterialIcons name="timer" size={32} color={colors.primary} />
-          <Text style={styles.cardTitle}>Horas Cursadas</Text>
-          <Text style={styles.cardValue}>{horasTotais}h</Text>
+
+        <View style={styles.metrics}>
+          <MetricCard icon="school" label="Disponiveis" value={resumo.cursosDisponiveis} />
+          <MetricCard icon="playlist-add-check" label="Matriculas" value={resumo.cursosMatriculados} />
+          <MetricCard icon="check-circle" label="Aulas feitas" value={resumo.aulasConcluidas} />
+          <MetricCard icon="workspace-premium" label="Certificados" value={resumo.certificadosEmitidos} />
         </View>
-        <View style={styles.card}>
-          <MaterialIcons name="emoji-events" size={32} color={colors.primary} />
-          <Text style={styles.cardTitle}>Certificados</Text>
-          <Text style={styles.cardValue}>3</Text>
-        </View>
-      </View>
-    </ScrollView>
+
+        <Text style={styles.sectionTitle}>Continuar curso</Text>
+        {continuar ? (
+          <View style={styles.continueCard}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="play-circle" size={30} color={colors.primary} />
+              <Text style={styles.courseTitle}>{continuar.titulo}</Text>
+            </View>
+            <Text style={styles.description}>{continuar.descricao}</Text>
+            <Text style={styles.progressLabel}>{continuar.progresso?.percentual || 0}% concluido</Text>
+            <ProgressBar value={continuar.progresso?.percentual || 0} />
+            <PrimaryButton
+              icon="arrow-forward"
+              label="Abrir proxima aula"
+              onPress={() => router.push(`/cursos/${continuar.id}` as never)}
+            />
+          </View>
+        ) : (
+          <EmptyState
+            description="Escolha um curso no catalogo para iniciar uma trilha e acompanhar seu progresso aqui."
+            icon="menu-book"
+            title="Nenhum curso em andamento"
+          />
+        )}
+      </ScrollView>
+    </Screen>
   );
 }

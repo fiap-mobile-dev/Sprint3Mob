@@ -1,48 +1,119 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
+import { PrimaryButton, Screen } from '../../src/components/ui';
 import { useAuth } from '../../src/context/AuthContext';
 import { useTheme } from '../../src/context/ThemeContext';
-import { MaterialIcons } from '@expo/vector-icons';
 
 export default function PerfilScreen() {
   const { user, signOut } = useAuth();
   const { theme, toggleTheme, colors } = useTheme();
+  const router = useRouter();
 
   const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background, padding: 24, alignItems: 'center' },
-    avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-    name: { fontSize: 24, fontWeight: 'bold', color: colors.text },
-    role: { fontSize: 16, color: colors.text, opacity: 0.7, marginBottom: 32 },
-    card: { backgroundColor: colors.card, width: '100%', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-    cardText: { fontSize: 18, color: colors.text },
-    logoutButton: { backgroundColor: 'red', width: '100%', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 'auto' },
-    logoutText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    content: {
+      padding: 20,
+      paddingBottom: 32,
+    },
+    profileCard: {
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 8,
+      marginBottom: 16,
+      padding: 20,
+    },
+    avatar: {
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 42,
+      height: 84,
+      justifyContent: 'center',
+      width: 84,
+    },
+    name: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: '900',
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    role: {
+      color: colors.muted,
+      fontSize: 14,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+    },
+    item: {
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      minHeight: 58,
+      paddingHorizontal: 14,
+    },
+    itemLeft: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 12,
+    },
+    itemText: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    logout: {
+      marginTop: 8,
+    },
   });
 
   return (
-    <View style={styles.container}>
-      <View style={styles.avatar}>
-        <MaterialIcons name="person" size={60} color="#FFF" />
-      </View>
-      <Text style={styles.name}>{user?.name}</Text>
-      <Text style={styles.role}>{user?.role === 'admin' ? 'Administrador' : 'Aluno'}</Text>
-
-      <View style={styles.card}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <MaterialIcons name="dark-mode" size={24} color={colors.primary} />
-          <Text style={styles.cardText}>Modo Escuro</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <MaterialIcons name="person" size={48} color="#FFFFFF" />
+          </View>
+          <Text style={styles.name}>{user?.name}</Text>
+          <Text style={styles.role}>{user?.role === 'admin' ? 'Administrador' : 'Aluno'}</Text>
         </View>
-        <Switch 
-          value={theme === 'dark'} 
-          onValueChange={toggleTheme} 
-          trackColor={{ false: '#767577', true: colors.primary }}
-          thumbColor={theme === 'dark' ? '#FFF' : '#f4f3f4'}
-        />
-      </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
-        <Text style={styles.logoutText}>SAIR DA CONTA</Text>
-      </TouchableOpacity>
-    </View>
+        <View style={styles.item}>
+          <View style={styles.itemLeft}>
+            <MaterialIcons name="dark-mode" size={24} color={colors.primary} />
+            <Text style={styles.itemText}>Modo escuro</Text>
+          </View>
+          <Switch
+            onValueChange={toggleTheme}
+            thumbColor={theme === 'dark' ? '#FFFFFF' : '#F4F3F4'}
+            trackColor={{ false: '#98A2B3', true: colors.primary }}
+            value={theme === 'dark'}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.item} onPress={() => router.push('/sobre' as never)}>
+          <View style={styles.itemLeft}>
+            <MaterialIcons name="info" size={24} color={colors.primary} />
+            <Text style={styles.itemText}>Sobre o app</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
+        </TouchableOpacity>
+
+        <PrimaryButton
+          icon="logout"
+          label="Sair da conta"
+          onPress={signOut}
+          style={styles.logout}
+          variant="danger"
+        />
+      </ScrollView>
+    </Screen>
   );
 }

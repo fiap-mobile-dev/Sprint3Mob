@@ -1,85 +1,230 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../../../src/api/api';
-import { useTheme } from '../../../src/context/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
-
-interface Aula { id?: number; titulo: string; conteudo: string; }
-interface Curso {
-  id: number;
-  titulo: string;
-  descricao: string;
-  cargaHoraria: number;
-  instrutor: string;
-  aulas?: Aula[];
-}
+import { EmptyState, ErrorState, LoadingState, PrimaryButton, ProgressBar, Screen } from '../../../src/components/ui';
+import { useTheme } from '../../../src/context/ThemeContext';
+import { useCourse, useEnrollCourse } from '../../../src/hooks/useLearning';
+import { getApiErrorMessage } from '../../../src/services/http';
+import { Aula } from '../../../src/types/domain';
 
 export default function CursoDetalhesScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const router = useRouter();
+  const course = useCourse(id);
+  const enroll = useEnrollCourse();
 
-  const { data: curso, isLoading, isError } = useQuery<Curso>({
-    queryKey: ['curso', id],
-    queryFn: async () => {
-      const resp = await api.get(`/cursos/${id}`);
-      return resp.data;
+  if (course.isLoading) return <LoadingState label="Abrindo curso..." />;
+  if (course.isError || !course.data) {
+    return <ErrorState message="Erro ao buscar curso." onRetry={() => course.refetch()} />;
+  }
+
+  const curso = course.data;
+  const progresso = curso.progresso;
+  const completedIds = progresso?.aulasConcluidasIds || [];
+  const nextLesson = curso.aulas.find((aula) => !completedIds.includes(aula.id)) || curso.aulas[0];
+  const totalChallenges = curso.aulas.reduce((total, aula) => total + (aula.totalDesafios || 0), 0);
+
+  const handleEnroll = async () => {
+    try {
+      await enroll.mutateAsync({ cursoId: curso.id, cursoTitulo: curso.titulo });
+    } catch (error) {
+      Alert.alert('Falha na matricula', getApiErrorMessage(error));
     }
-  });
+  };
+
+  const openLesson = (aula: Aula) => {
+    if (!progresso?.matriculado) {
+      Alert.alert('Matricula necessaria', 'Matricule-se no curso para acessar as aulas.');
+      return;
+    }
+
+    router.push(`/cursos/aula/${curso.id}?aulaId=${aula.id}` as never);
+  };
 
   const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background, padding: 24 },
-    title: { fontSize: 24, fontWeight: 'bold', color: colors.primary, marginBottom: 8 },
-    subtitle: { fontSize: 16, color: colors.text, opacity: 0.8, marginBottom: 24 },
-    label: { fontSize: 14, fontWeight: 'bold', color: colors.text, marginTop: 16 },
-    text: { fontSize: 16, color: colors.text, marginBottom: 8, lineHeight: 24 },
-    button: {
-      backgroundColor: colors.primary,
+    content: {
       padding: 16,
-      borderRadius: 8,
-      alignItems: 'center',
-      marginTop: 32,
+      paddingBottom: 32,
     },
-    buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+    header: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 12,
+      padding: 16,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 25,
+      fontWeight: '900',
+      lineHeight: 31,
+    },
+    meta: {
+      color: colors.muted,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    badges: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    badge: {
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    badgePrimary: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    badgeText: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    badgePrimaryText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    description: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    progressLabel: {
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    actions: {
+      gap: 10,
+      marginTop: 4,
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: '800',
+      marginBottom: 10,
+      marginTop: 22,
+    },
+    lesson: {
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 10,
+      padding: 14,
+    },
+    lessonText: {
+      flex: 1,
+      gap: 3,
+    },
+    lessonTitle: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: '800',
+      lineHeight: 20,
+    },
+    lessonMeta: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '600',
+    },
   });
 
-  if (isLoading) return <View style={[styles.container, styles.center]}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  if (isError || !curso) return <View style={[styles.container, styles.center]}><Text style={{ color: 'red' }}>Erro ao buscar curso.</Text></View>;
-
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>{curso.titulo}</Text>
-      <Text style={styles.subtitle}>Por {curso.instrutor} • {curso.cargaHoraria} horas</Text>
-      
-      <Text style={styles.label}>Sobre o curso:</Text>
-      <Text style={styles.text}>{curso.descricao}</Text>
+    <Screen>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={styles.title}>{curso.titulo}</Text>
+          <Text style={styles.meta}>
+            {curso.instrutor} - {curso.cargaHoraria}h - {curso.nivel} - {curso.categoria}
+          </Text>
+          <View style={styles.badges}>
+            {curso.source === 'freecodecamp' ? (
+              <View style={[styles.badge, styles.badgePrimary]}>
+                <Text style={styles.badgePrimaryText}>Curriculo real freeCodeCamp</Text>
+              </View>
+            ) : null}
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{curso.aulas.length} modulos</Text>
+            </View>
+            {totalChallenges ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{totalChallenges} desafios praticos</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.description}>{curso.descricao}</Text>
+          <Text style={styles.progressLabel}>{progresso?.percentual || 0}% concluido</Text>
+          <ProgressBar value={progresso?.percentual || 0} />
 
-      <Text style={[styles.label, { marginTop: 24, marginBottom: 16, fontSize: 18 }]}>Módulos do Curso</Text>
-      
-      {curso.aulas && curso.aulas.length > 0 ? (
-        curso.aulas.map((aula, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={[styles.button, { marginTop: 8, flexDirection: 'row', justifyContent: 'space-between' }]} 
-            onPress={() => router.push(`/cursos/aula/${id}?aulaIndex=${index}`)}
-          >
-            <Text style={styles.buttonText}>Aula {index + 1}: {aula.titulo}</Text>
-            <MaterialIcons name="chevron-right" size={24} color="#FFF" />
-          </TouchableOpacity>
-        ))
-      ) : (
-        <Text style={[styles.text, { opacity: 0.5, fontStyle: 'italic' }]}>Nenhuma aula cadastrada ainda.</Text>
-      )}
-      
-      <TouchableOpacity 
-        style={[styles.button, { backgroundColor: 'transparent', borderColor: colors.primary, borderWidth: 1, marginTop: 32, marginBottom: 40 }]} 
-        onPress={() => router.back()}
-      >
-        <Text style={[styles.buttonText, { color: colors.primary }]}>Voltar</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          <View style={styles.actions}>
+            {progresso?.certificadoEmitido ? (
+              <PrimaryButton
+                icon="workspace-premium"
+                label="Ver certificado"
+                onPress={() => router.push('/certificados' as never)}
+              />
+            ) : progresso?.matriculado ? (
+              <PrimaryButton
+                icon="play-arrow"
+                label="Continuar aulas"
+                onPress={() => nextLesson && openLesson(nextLesson)}
+              />
+            ) : (
+              <PrimaryButton
+                icon="playlist-add"
+                label="Matricular-se"
+                loading={enroll.isPending}
+                onPress={handleEnroll}
+              />
+            )}
+          </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>Modulos do curso</Text>
+        {curso.aulas.length ? (
+          curso.aulas.map((aula, index) => {
+            const completed = completedIds.includes(aula.id);
+            return (
+              <TouchableOpacity key={aula.id} onPress={() => openLesson(aula)} style={styles.lesson}>
+                <MaterialIcons
+                  color={completed ? colors.success : progresso?.matriculado ? colors.primary : colors.muted}
+                  name={completed ? 'check-circle' : progresso?.matriculado ? 'play-circle' : 'lock'}
+                  size={28}
+                />
+                <View style={styles.lessonText}>
+                  <Text style={styles.lessonTitle}>
+                    Aula {index + 1}: {aula.titulo}
+                  </Text>
+                  <Text style={styles.lessonMeta}>{aula.duracaoMinutos} minutos</Text>
+                  {aula.totalDesafios ? (
+                    <Text style={styles.lessonMeta}>{aula.totalDesafios} desafios no modulo</Text>
+                  ) : null}
+                </View>
+                <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <EmptyState
+            description="Este curso ainda nao possui aulas publicadas pelo administrador."
+            icon="playlist-remove"
+            title="Sem aulas cadastradas"
+          />
+        )}
+      </ScrollView>
+    </Screen>
   );
 }

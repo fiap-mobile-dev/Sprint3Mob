@@ -4,6 +4,11 @@ import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import {
+  addNotificationResponseListener,
+  configureNotifications,
+} from '../src/services/notificationService';
 
 const queryClient = new QueryClient();
 
@@ -12,6 +17,13 @@ function RootNavigation() {
   const segments = useSegments();
   const router = useRouter();
   const { colors } = useTheme();
+
+  useEffect(() => {
+    void configureNotifications().catch(() => undefined);
+    const subscription = addNotificationResponseListener((url) => router.push(url as never));
+
+    return () => subscription.remove();
+  }, [router]);
 
   useEffect(() => {
     if (loading) return;
@@ -23,7 +35,7 @@ function RootNavigation() {
     } else if (user && !inAuthGroup) {
       router.replace('/(app)');
     }
-  }, [user, loading, segments]);
+  }, [user, loading, router, segments]);
 
   if (loading) {
     return (
@@ -41,6 +53,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <StatusBar style="auto" />
           <RootNavigation />
         </AuthProvider>
       </ThemeProvider>

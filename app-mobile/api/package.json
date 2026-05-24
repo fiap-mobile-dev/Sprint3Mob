@@ -1,10 +1,12 @@
 {
-  "name": "backend-auth",
+  "name": "oraclelearn-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API de autenticacao, cursos, progresso e certificados do OracleLearn",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --check server.js"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +16,6 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "json-server": "^1.0.0-beta.15",
     "jsonwebtoken": "^9.0.3"
   }
 }

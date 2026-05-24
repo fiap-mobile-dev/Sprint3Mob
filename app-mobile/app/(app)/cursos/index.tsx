@@ -1,91 +1,188 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { api } from '../../../src/api/api';
-import { useTheme } from '../../../src/context/ThemeContext';
 import { MaterialIcons } from '@expo/vector-icons';
-
-interface Curso {
-  id: number;
-  titulo: string;
-  descricao: string;
-  cargaHoraria: number;
-  instrutor: string;
-}
+import { EmptyState, ErrorState, LoadingState, ProgressBar, Screen } from '../../../src/components/ui';
+import { useTheme } from '../../../src/context/ThemeContext';
+import { useCourses } from '../../../src/hooks/useLearning';
+import { Curso } from '../../../src/types/domain';
 
 export default function CursosScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const [search, setSearch] = useState('');
+  const courses = useCourses();
 
-  const { data: cursos, isLoading, isError, refetch, isRefetching } = useQuery<Curso[]>({
-    queryKey: ['cursos'],
-    queryFn: async () => {
-      const resp = await api.get('/cursos');
-      return resp.data;
-    }
-  });
+  const filteredCourses = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return courses.data || [];
+    return (courses.data || []).filter((curso) =>
+      [curso.titulo, curso.descricao, curso.instrutor, curso.categoria]
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [courses.data, search]);
 
   const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background, padding: 16 },
+    container: {
+      padding: 16,
+      paddingBottom: 28,
+    },
+    search: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      color: colors.text,
+      fontSize: 15,
+      marginBottom: 14,
+      minHeight: 48,
+      paddingHorizontal: 14,
+    },
     card: {
       backgroundColor: colors.card,
-      padding: 16,
-      borderRadius: 12,
-      marginBottom: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
+      borderColor: colors.border,
+      borderRadius: 8,
+      borderWidth: 1,
+      gap: 10,
+      marginBottom: 12,
+      padding: 14,
     },
-    infoContainer: { flex: 1 },
-    title: { fontSize: 18, fontWeight: 'bold', color: colors.text, marginBottom: 4 },
-    subtitle: { fontSize: 14, color: colors.text, opacity: 0.7 },
-    errorText: { color: 'red', textAlign: 'center', marginTop: 20 },
+    cardHeader: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: 10,
+    },
+    iconBox: {
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      height: 40,
+      justifyContent: 'center',
+      width: 40,
+    },
+    cardTitle: {
+      color: colors.text,
+      flex: 1,
+      fontSize: 17,
+      fontWeight: '800',
+      lineHeight: 22,
+    },
+    meta: {
+      color: colors.muted,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    row: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    badge: {
+      borderColor: colors.border,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    sourceBadge: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    badgeText: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    sourceBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    progressLabel: {
+      color: colors.muted,
+      fontSize: 12,
+      fontWeight: '700',
+    },
   });
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  const renderCourse = ({ item }: { item: Curso }) => {
+    const progress = item.progresso?.percentual || 0;
+    const badge = item.progresso?.certificadoEmitido
+      ? 'Certificado'
+      : item.progresso?.matriculado
+        ? 'Em andamento'
+        : item.nivel;
+    const challenges = item.aulas.reduce((total, aula) => total + (aula.totalDesafios || 0), 0);
 
-  if (isError) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Erro ao carregar os cursos.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={{ padding: 16, alignItems: 'center' }}>
-          <Text style={{ color: colors.primary }}>Tentar Novamente</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        onPress={() => router.push(`/cursos/${item.id}` as never)}
+        style={styles.card}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.iconBox}>
+            <MaterialIcons name="school" size={22} color="#FFFFFF" />
+          </View>
+          <Text style={styles.cardTitle}>{item.titulo}</Text>
+          <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
+        </View>
+        <Text style={styles.meta}>
+          {item.instrutor} - {item.cargaHoraria}h - {item.categoria}
+          {challenges ? ` - ${challenges} desafios` : ''}
+        </Text>
+        <View style={styles.row}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge}</Text>
+            </View>
+            {item.source === 'freecodecamp' ? (
+              <View style={styles.sourceBadge}>
+                <Text style={styles.sourceBadgeText}>freeCodeCamp</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.progressLabel}>{progress}% concluido</Text>
+        </View>
+        <ProgressBar value={progress} />
+      </TouchableOpacity>
     );
+  };
+
+  if (courses.isLoading) return <LoadingState label="Buscando cursos..." />;
+  if (courses.isError) {
+    return <ErrorState message="Erro ao carregar os cursos." onRetry={() => courses.refetch()} />;
   }
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <FlatList
-        data={cursos}
-        keyExtractor={(item) => item.id.toString()}
-        onRefresh={refetch}
-        refreshing={isRefetching}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.card}
-            onPress={() => router.push(`/cursos/${item.id}`)}
-          >
-            <View style={styles.infoContainer}>
-              <Text style={styles.title}>{item.titulo}</Text>
-              <Text style={styles.subtitle}>{item.instrutor} • {item.cargaHoraria} horas</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.primary} />
-          </TouchableOpacity>
-        )}
+        contentContainerStyle={styles.container}
+        data={filteredCourses}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={
+          <EmptyState
+            description="Nenhum curso combina com a busca atual."
+            icon="search-off"
+            title="Curso nao encontrado"
+          />
+        }
+        ListHeaderComponent={
+          <TextInput
+            onChangeText={setSearch}
+            placeholder="Buscar por curso, instrutor ou categoria"
+            placeholderTextColor={colors.muted}
+            style={styles.search}
+            value={search}
+          />
+        }
+        onRefresh={courses.refetch}
+        refreshing={courses.isRefetching}
+        renderItem={renderCourse}
       />
-    </View>
+    </Screen>
   );
 }
