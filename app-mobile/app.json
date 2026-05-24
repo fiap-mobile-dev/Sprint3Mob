@@ -45,6 +45,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "apiUrl": "https://oraclelearn-api2.onrender.com/api",
+      "commitHash": "50c4034",
+      "router": {},
+      "eas": {
+        "projectId": "889c32d3-b710-423e-a449-afc9290a0c5c"
+      }
     }
   }
 }
