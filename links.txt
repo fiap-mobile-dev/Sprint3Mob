@@ -1,4 +1,4 @@
-Link video: xxx
+Link video: https://youtu.be/ncIk0CHyaGk
 Link github: https://github.com/fiap-mobile-dev/Sprint3Mob
 
 Gustavo Ramos RM 561055
